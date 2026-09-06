@@ -1,0 +1,42 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "description": "User profiles and authentication details",
+      "rules": "allow read, write: if request.auth != null && request.auth.uid == resource.id;",
+      "schema": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    {
+      "name": "orders",
+      "description": "Order records linking customers, restaurants, and delivery drivers",
+      "rules": "allow read: if request.auth != null && (request.auth.uid == resource.data.customerId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['RESTAURANT', 'DELIVERY_PARTNER']); allow create: if request.auth != null; allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['RESTAURANT', 'DELIVERY_PARTNER'];",
+      "schema": {
+        "customerId": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "status": { "type": "string" },
+        "total": { "type": "number" },
+        "items": { "type": "array" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    {
+      "name": "restaurants",
+      "description": "Restaurant details and menus",
+      "rules": "allow read: if true; allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'RESTAURANT';",
+      "schema": {
+        "name": { "type": "string" },
+        "rating": { "type": "number" },
+        "tags": { "type": "array" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    }
+  ]
+}

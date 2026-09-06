@@ -1,0 +1,27 @@
+rules_version = "2";
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "ADMIN";
+    }
+    
+    match /users/{userId} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if isAdmin();
+    }
+    match /orders/{orderId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.customerId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["RESTAURANT", "DELIVERY_PARTNER"] || isAdmin());
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["RESTAURANT", "DELIVERY_PARTNER"] || isAdmin());
+    }
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow write: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "RESTAURANT" || isAdmin());
+      
+      match /menu/{menuId} {
+        allow read: if true;
+        allow write: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "RESTAURANT" || isAdmin());
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "FoodFusion",
+  "description": "A Unified Intelligent Food Delivery & Restaurant Management Platform with a Smart Meal Planner.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
