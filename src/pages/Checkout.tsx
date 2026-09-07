@@ -2,16 +2,23 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { useLocationContext } from "../context/LocationContext";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { MapPin, CreditCard, Wallet, Banknote, ArrowRight, Loader2, ChevronRight } from "lucide-react";
+import { MapPin, CreditCard, Wallet, Banknote, ArrowRight, Loader2, ChevronRight, Navigation, Tag, X } from "lucide-react";
 
 export function Checkout() {
   const { items, cartTotal, cartCount, clearCart, restaurantId } = useCart();
   const { user } = useAuth();
+  const { address, isLocating, locationError, detectLocation } = useLocationContext();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("upi");
+  
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discountAmount: number, type: string} | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState("");
 
   // Force login before checkout
   useEffect(() => {
@@ -22,7 +29,41 @@ export function Checkout() {
 
   const platformFee = 5;
   const deliveryFee = 30;
-  const total = cartTotal + platformFee + deliveryFee;
+  const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const total = Math.max(0, cartTotal + platformFee + deliveryFee - discount);
+
+  const handleApplyCoupon = () => {
+    setCouponError("");
+    setCouponSuccess("");
+    if (!couponCode.trim()) return;
+    
+    const code = couponCode.trim().toUpperCase();
+    
+    if (code === "WELCOME50") {
+      const discountVal = Math.min(cartTotal * 0.5, 100);
+      setAppliedCoupon({ code, discountAmount: discountVal, type: "percent" });
+      setCouponSuccess(`${code} applied! ₹${discountVal.toFixed(0)} off.`);
+    } else if (code === "FLAT100") {
+      if (cartTotal < 200) {
+        setCouponError("Minimum order value for FLAT100 is ₹200");
+        return;
+      }
+      setAppliedCoupon({ code, discountAmount: 100, type: "flat" });
+      setCouponSuccess(`${code} applied! ₹100 off.`);
+    } else if (code === "FREEDELIVERY") {
+      setAppliedCoupon({ code, discountAmount: deliveryFee, type: "delivery" });
+      setCouponSuccess(`${code} applied! Free delivery.`);
+    } else {
+      setCouponError("Invalid coupon code.");
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponSuccess("");
+    setCouponError("");
+  };
 
   if (items.length === 0) {
     return (
@@ -41,6 +82,14 @@ export function Checkout() {
 
   const handlePlaceOrder = async () => {
     if (!user) return;
+    if (!address || address.trim() === '') {
+      alert("Please enter a delivery address or use location detection.");
+      return;
+    }
+    if (!restaurantId) {
+      alert("Invalid cart state. Missing restaurant.");
+      return;
+    }
     setIsProcessing(true);
     
     try {
@@ -50,6 +99,8 @@ export function Checkout() {
         restaurantId: restaurantId || "unknown_restaurant",
         status: "PLACED",
         total: total,
+        discount: discount,
+        couponCode: appliedCoupon?.code || null,
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -57,7 +108,7 @@ export function Checkout() {
           quantity: item.quantity
         })),
         paymentMethod: paymentMethod,
-        address: "123 Main St, Eluru, AP", // Hardcoded for prototype
+        address: address,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -90,18 +141,35 @@ export function Checkout() {
             
             {/* Delivery Address */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-orange-500" />
-                Delivery Address
-              </h2>
-              <div className="border border-orange-200 bg-orange-50 p-4 rounded-xl relative">
-                <div className="absolute top-4 right-4 bg-orange-200 text-orange-700 text-xs font-bold px-2 py-1 rounded">HOME</div>
-                <h3 className="font-bold text-gray-900">Murali Naga</h3>
-                <p className="text-gray-600 text-sm mt-1 mb-3">123 Main Street, Phase 2, Eluru, Andhra Pradesh 534001</p>
-                <div className="text-sm font-medium text-gray-900">+91 98765 43210</div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                  Delivery Address
+                </h2>
+                <button 
+                  onClick={detectLocation}
+                  disabled={isLocating}
+                  className="flex items-center gap-1.5 text-sm font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {isLocating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                  {isLocating ? "Locating..." : "Auto-detect"}
+                </button>
               </div>
-              <button className="mt-4 text-orange-600 font-bold text-sm hover:text-orange-700">
-                + Add New Address
+
+              {locationError && (
+                <div className="mb-3 text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+                  {locationError}
+                </div>
+              )}
+
+              <div className="border border-orange-200 bg-orange-50 p-4 rounded-xl relative">
+                <div className="absolute top-4 right-4 bg-orange-200 text-orange-700 text-xs font-bold px-2 py-1 rounded">CURRENT</div>
+                <h3 className="font-bold text-gray-900">{user?.name || "Customer"}</h3>
+                <p className="text-gray-600 text-sm mt-1 mb-3">{address}</p>
+                <div className="text-sm font-medium text-gray-900">{user?.email}</div>
+              </div>
+              <button className="mt-4 text-gray-600 font-bold text-sm hover:text-gray-900">
+                + Add New Address Manually
               </button>
             </div>
 
@@ -164,6 +232,51 @@ export function Checkout() {
                 ))}
               </div>
 
+              {/* Coupon Section */}
+              <div className="mb-6">
+                {!appliedCoupon ? (
+                  <div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Coupon Code"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium uppercase"
+                        />
+                      </div>
+                      <button
+                        onClick={handleApplyCoupon}
+                        className="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {couponError && <p className="text-red-500 text-xs mt-2 font-medium">{couponError}</p>}
+                    <div className="mt-2 text-xs text-gray-500 space-x-2">
+                      <span>Try:</span>
+                      <button onClick={() => setCouponCode("WELCOME50")} className="font-bold text-orange-600 hover:underline">WELCOME50</button>
+                      <button onClick={() => setCouponCode("FREEDELIVERY")} className="font-bold text-orange-600 hover:underline">FREEDELIVERY</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-green-600" />
+                      <div>
+                        <div className="text-sm font-bold text-green-700">{appliedCoupon.code} Applied</div>
+                        <div className="text-xs text-green-600 font-medium">{couponSuccess}</div>
+                      </div>
+                    </div>
+                    <button onClick={handleRemoveCoupon} className="p-1 hover:bg-green-100 rounded-full transition-colors text-green-700">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="border-t border-gray-100 pt-4 space-y-3 mb-6">
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Item Total</span>
@@ -177,6 +290,12 @@ export function Checkout() {
                   <span>Platform Fee</span>
                   <span className="font-medium text-gray-900">₹{platformFee}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm font-bold text-green-600">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span>-₹{appliedCoupon.discountAmount}</span>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-gray-100 pt-4 mb-6">

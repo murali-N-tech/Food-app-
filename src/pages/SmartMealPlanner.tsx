@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { Sparkles, Utensils, IndianRupee, Users, ChefHat, ArrowRight, Loader2, Star } from "lucide-react";
+import { Sparkles, Utensils, IndianRupee, Users, ChefHat, ArrowRight, Loader2, Star, AlertCircle } from "lucide-react";
+import { db } from "../lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { useCart } from "../context/CartContext";
+import { useNavigate } from "react-router-dom";
 
 export function SmartMealPlanner() {
   const [budget, setBudget] = useState(300);
@@ -7,32 +11,86 @@ export function SmartMealPlanner() {
   const [preference, setPreference] = useState("Any");
   const [isGenerating, setIsGenerating] = useState(false);
   const [recommendation, setRecommendation] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { addToCart, clearCart } = useCart();
+  const navigate = useNavigate();
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
     setRecommendation(null);
+    setError(null);
     
-    // Simulate AI / algorithmic processing
-    setTimeout(() => {
-      setIsGenerating(false);
-      setRecommendation({
-        restaurant: "Biryani Paradise",
-        total: 287,
-        time: "27 mins",
-        rating: 4.5,
-        items: [
-          { name: "Chicken Dum Biryani (Full)", price: 220, tag: "High Protein" },
-          { name: "Thumbs Up (250ml)", price: 40, tag: "Beverage" },
-          { name: "Extra Raita", price: 27, tag: "Add-on" }
-        ],
-        reasons: [
-          "Perfectly matches your budget under ₹300",
-          "High protein profile",
-          "Available within 2.5km",
-          "Top-rated for consistency"
-        ]
+    try {
+      // 1. Fetch data from Firestore
+      const restsSnap = await getDocs(collection(db, "restaurants"));
+      const restaurants = restsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      let dishes: any[] = [];
+      for (const rest of restaurants) {
+        const menuSnap = await getDocs(collection(db, `restaurants/${rest.id}/menu`));
+        const restDishes = menuSnap.docs.map(doc => ({
+           id: doc.id, 
+           restaurantId: rest.id,
+           name: (rest as any).name,
+           ...(doc.data() as any)
+        }));
+        dishes = [...dishes, ...restDishes];
+      }
+
+      // 2. Call backend Gemini API
+      const res = await fetch("/api/meal-planner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budget,
+          people,
+          preference,
+          restaurants,
+          dishes
+        })
       });
-    }, 2000);
+
+      if (!res.ok) {
+        throw new Error("Failed to generate meal plan.");
+      }
+
+      const plan = await res.json();
+      setRecommendation({
+        ...plan,
+        restaurant: plan.restaurantName || "Recommended Restaurant"
+      });
+    } catch (err) {
+      console.error(err);
+      setError("Unable to generate meal plan. Please try adjusting your budget or preferences.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (!recommendation) return;
+    
+    clearCart();
+
+    // Add all recommended items
+    recommendation.items.forEach((item: any) => {
+      // Need to add multiple times based on quantity, or modify CartContext.
+      // Since CartContext addToCart currently adds 1, we will just call it quantity times.
+      const qty = item.quantity || 1;
+      for (let i = 0; i < qty; i++) {
+        addToCart({
+          id: item.id,
+          restaurantId: recommendation.restaurantId,
+          name: item.name,
+          price: item.price,
+          description: item.tag || "",
+          category: "",
+          isVeg: true, 
+        });
+      }
+    });
+
+    navigate("/checkout");
   };
 
   return (
@@ -136,6 +194,13 @@ export function SmartMealPlanner() {
           </button>
         </div>
 
+        {error && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-2xl mb-8 flex items-start gap-3 border border-red-100">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
+
         {/* Results Section */}
         {recommendation && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -181,8 +246,11 @@ export function SmartMealPlanner() {
                   </ul>
                 </div>
 
-                <button className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md">
-                  Add to Cart
+                <button 
+                  onClick={handleAddToCart}
+                  className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
+                >
+                  Add Meal to Cart
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

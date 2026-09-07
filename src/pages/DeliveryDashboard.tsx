@@ -152,7 +152,20 @@ export function DeliveryDashboard() {
           
           <div className="space-y-4">
             {loading ? (
-              <div className="bg-white p-8 text-center text-gray-500 rounded-2xl border border-gray-100">Loading trips...</div>
+              <div className="space-y-4">
+                {[1, 2].map(i => (
+                  <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 animate-pulse">
+                    <div className="flex justify-between mb-4">
+                       <div className="h-6 w-32 bg-gray-200 rounded"></div>
+                       <div className="h-6 w-24 bg-gray-200 rounded"></div>
+                    </div>
+                    <div className="space-y-3">
+                       <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
+                       <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : !isOnline ? (
               <div className="bg-white p-12 text-center text-gray-500 rounded-2xl border border-gray-100 flex flex-col items-center">
                 <Power className="w-12 h-12 text-gray-300 mb-3" />

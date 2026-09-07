@@ -3,11 +3,13 @@ import { ShoppingBag, Search, User, MapPin, ChefHat, LogOut } from "lucide-react
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { useLocationContext } from "../context/LocationContext";
 import { CartSidebar } from "./CartSidebar";
 
 export function Navbar() {
   const { cartCount } = useCart();
   const { user, logout } = useAuth();
+  const { address } = useLocationContext();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -25,9 +27,9 @@ export function Navbar() {
             </Link>
 
             {/* Location (Desktop) */}
-            <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 cursor-pointer transition-colors px-4 py-2 rounded-full hover:bg-gray-50">
-              <MapPin className="w-4 h-4 text-orange-500" />
-              <span className="font-medium">Eluru, AP</span>
+            <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 cursor-pointer transition-colors px-4 py-2 rounded-full hover:bg-gray-50 max-w-[200px]">
+              <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
+              <span className="font-medium truncate">{address}</span>
             </div>
 
             {/* Actions */}

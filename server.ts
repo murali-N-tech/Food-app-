@@ -1,12 +1,16 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // API Routes
   app.get("/api/health", (req, res) => {
@@ -96,6 +100,61 @@ async function startServer() {
     });
 
     res.json(results);
+  });
+
+  app.post("/api/meal-planner", async (req, res) => {
+    try {
+      const { budget, people, preference, restaurants, dishes } = req.body;
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API key is missing on the server." });
+      }
+
+      const prompt = `You are an intelligent food delivery assistant. 
+The user wants a meal plan.
+Budget per person: ₹${budget}
+Total People: ${people}
+Dietary Preference: ${preference}
+
+Available Restaurants:
+${JSON.stringify(restaurants.map((r: any) => ({ id: r.id, name: r.name, rating: r.rating, deliveryTime: r.deliveryTime })))}
+
+Available Dishes:
+${JSON.stringify(dishes.map((d: any) => ({ id: d.id, restaurantId: d.restaurantId, name: d.name, price: d.price, category: d.category })))}
+
+Based on the budget (total budget = ₹${budget * people}), pick the BEST restaurant and select a combination of items from THAT single restaurant to form a complete meal for ${people} people.
+CRITICAL RULE: You MUST use the EXACT prices provided in the "Available Dishes" array. Do NOT hallucinate prices. The 'total' field MUST be exactly the mathematical sum of (price * quantity) for all selected items, and this total MUST be less than or equal to the total budget of ₹${budget * people}.
+Ensure the preference (${preference}) is respected.
+
+Return the result STRICTLY as a JSON object with this schema, no markdown blocks:
+{
+  "restaurantId": "string",
+  "restaurantName": "string",
+  "total": number,
+  "time": "string",
+  "rating": number,
+  "items": [
+    { "id": "string", "name": "string", "price": number, "quantity": number, "tag": "string" }
+  ],
+  "reasons": ["string", "string"]
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        },
+      });
+
+      const responseText = response.text;
+      if (!responseText) throw new Error("No response from Gemini");
+
+      res.json(JSON.parse(responseText));
+    } catch (error) {
+      console.error("Meal planner error:", error);
+      res.status(500).json({ error: "Failed to generate meal plan" });
+    }
   });
 
   // Vite middleware for development

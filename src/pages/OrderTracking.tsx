@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { db } from "../lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { MapPin, ChefHat, CheckCircle2, Navigation, Phone, MessageSquare, ChevronLeft, Package } from "lucide-react";
@@ -29,7 +30,37 @@ export function OrderTracking() {
   }, [id]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center font-medium text-gray-500">Loading order details...</div>;
+    return (
+    <div className="min-h-screen bg-gray-50 pt-8 pb-32">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-8"></div>
+        <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex-1 space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 h-48 animate-pulse flex flex-col gap-4">
+              <div className="h-6 w-1/3 bg-gray-200 rounded"></div>
+              <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
+              <div className="mt-auto h-2 w-full bg-gray-200 rounded"></div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 h-64 animate-pulse flex flex-col gap-4">
+              <div className="h-6 w-1/4 bg-gray-200 rounded mb-4"></div>
+              <div className="h-10 w-full bg-gray-200 rounded"></div>
+              <div className="h-10 w-full bg-gray-200 rounded"></div>
+              <div className="h-10 w-full bg-gray-200 rounded"></div>
+            </div>
+          </div>
+          <div className="w-full lg:w-[400px]">
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 h-96 animate-pulse flex flex-col gap-4">
+              <div className="h-6 w-1/2 bg-gray-200 rounded mb-4"></div>
+              <div className="h-8 w-full bg-gray-200 rounded"></div>
+              <div className="h-8 w-full bg-gray-200 rounded"></div>
+              <div className="h-8 w-full bg-gray-200 rounded"></div>
+              <div className="mt-auto h-12 w-full bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+);
   }
 
   if (!order) {
@@ -54,14 +85,41 @@ export function OrderTracking() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       
-      {/* Map Area Placeholder */}
-      <div className="h-64 w-full bg-gray-200 relative overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}></div>
-        <div className="z-10 flex flex-col items-center text-gray-500">
-          <MapPin className="w-10 h-10 mb-2 text-gray-400" />
-          <span className="font-bold text-sm uppercase tracking-wider">Live Map Tracking Available</span>
-        </div>
-        <Link to="/" className="absolute top-4 left-4 bg-white/90 backdrop-blur shadow-sm p-2 rounded-full text-gray-700 hover:text-gray-900 transition-colors">
+      {/* Map Area */}
+      <div className="h-64 sm:h-96 w-full bg-gray-200 relative overflow-hidden flex items-center justify-center">
+        {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
+          <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+            <Map
+              defaultCenter={{ lat: 12.9716, lng: 77.5946 }}
+              defaultZoom={14}
+              mapId="DEMO_MAP_ID"
+              disableDefaultUI={true}
+              internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
+            >
+              {/* Restaurant Marker */}
+              <AdvancedMarker position={{ lat: 12.9716, lng: 77.5946 }}>
+                <Pin background={"#ea4335"} glyphColor={"#fff"} borderColor={"#c5221f"} />
+              </AdvancedMarker>
+              
+              {/* Delivery Partner Marker */}
+              <AdvancedMarker position={{ lat: 12.98, lng: 77.605 }}>
+                 <div className="bg-orange-500 rounded-full p-2 border-2 border-white shadow-lg text-white">
+                    <Navigation className="w-5 h-5" />
+                 </div>
+              </AdvancedMarker>
+            </Map>
+          </APIProvider>
+        ) : (
+          <div className="flex flex-col items-center justify-center p-4 text-center z-10">
+             <MapPin className="w-10 h-10 mb-2 text-gray-400" />
+             <span className="font-bold text-sm uppercase tracking-wider mb-2 text-gray-600">Live Map Tracking Available</span>
+             <p className="text-xs text-gray-500 max-w-sm">
+                Add your VITE_GOOGLE_MAPS_API_KEY via settings to enable live delivery tracking.
+             </p>
+          </div>
+        )}
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }}></div>
+        <Link to="/" className="absolute top-4 left-4 z-50 bg-white/90 backdrop-blur shadow-sm p-2 rounded-full text-gray-700 hover:text-gray-900 transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </Link>
       </div>
@@ -83,25 +141,41 @@ export function OrderTracking() {
           <div className="p-8">
             <h2 className="text-lg font-bold text-gray-900 mb-6">Track Order</h2>
             
-            <div className="relative border-l-2 border-gray-100 ml-4 space-y-8 pb-4">
+            <div className="relative ml-4 space-y-8 pb-4">
+              {/* Background Line */}
+              <div className="absolute top-2 bottom-6 left-[0px] w-0.5 bg-gray-100 z-0"></div>
+              
+              {/* Animated Progress Line */}
+              <div 
+                className="absolute top-2 left-[0px] w-0.5 bg-orange-500 z-0 transition-all duration-1000 ease-in-out origin-top"
+                style={{ 
+                  height: activeStatusIndex === 0 ? '0%' : `calc(${(activeStatusIndex / (statuses.length - 1)) * 100}% - 1rem)` 
+                }}
+              ></div>
+
               {statuses.map((s, idx) => {
                 const isActive = idx === activeStatusIndex;
                 const isPast = idx < activeStatusIndex;
                 const Icon = s.icon;
                 
                 return (
-                  <div key={s.key} className="relative pl-8">
-                    <div className={`absolute -left-[11px] top-1 rounded-full p-1 
-                      ${isActive ? 'bg-orange-100 text-orange-600 ring-4 ring-white' : 
-                        isPast ? 'bg-green-100 text-green-600 ring-4 ring-white' : 
-                        'bg-gray-100 text-gray-400 ring-4 ring-white'}`}>
-                      <Icon className="w-3.5 h-3.5" />
+                  <div key={s.key} className="relative pl-8 z-10 group">
+                    <div className={`absolute -left-[11px] top-1 rounded-full p-1.5 transition-all duration-700 ease-out shadow-[0_0_0_4px_rgba(255,255,255,1)]
+                      ${isActive ? 'bg-orange-500 text-white scale-110' : 
+                        isPast ? 'bg-orange-500 text-white' : 
+                        'bg-gray-100 text-gray-400'}`}>
+                      <Icon className="w-3.5 h-3.5 relative z-10" />
+                      
+                      {/* Subtly pinging ring for the active state */}
+                      {isActive && (
+                        <span className="absolute inset-0 rounded-full border-2 border-orange-500 animate-ping opacity-75"></span>
+                      )}
                     </div>
-                    <div>
-                      <h3 className={`font-bold ${isActive ? 'text-orange-600' : isPast ? 'text-gray-900' : 'text-gray-400'}`}>
+                    <div className="transform transition-all duration-500 hover:translate-x-1">
+                      <h3 className={`font-bold transition-colors duration-300 ${isActive ? 'text-orange-600' : isPast ? 'text-gray-900' : 'text-gray-400'}`}>
                         {s.label}
                       </h3>
-                      <p className={`text-sm ${isActive ? 'text-gray-700' : 'text-gray-500'}`}>
+                      <p className={`text-sm transition-colors duration-300 ${isActive ? 'text-gray-700' : 'text-gray-500'}`}>
                         {s.desc}
                       </p>
                     </div>

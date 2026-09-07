@@ -103,7 +103,7 @@ export function AdminDashboard() {
               </div>
             </div>
             <div className="text-3xl font-black text-gray-900">
-              {loading ? "-" : `₹${stats.totalRevenue.toLocaleString()}`}
+              {loading ? <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div> : `₹${stats.totalRevenue.toLocaleString()}`}
             </div>
             <div className="text-sm font-medium text-gray-500 mt-1">Platform Revenue</div>
           </div>
@@ -115,7 +115,7 @@ export function AdminDashboard() {
               </div>
             </div>
             <div className="text-3xl font-black text-gray-900">
-              {loading ? "-" : stats.totalUsers}
+              {loading ? <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div> : stats.totalUsers}
             </div>
             <div className="text-sm font-medium text-gray-500 mt-1">Registered Users</div>
           </div>
@@ -127,7 +127,7 @@ export function AdminDashboard() {
               </div>
             </div>
             <div className="text-3xl font-black text-gray-900">
-              {loading ? "-" : stats.totalOrders}
+              {loading ? <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div> : stats.totalOrders}
             </div>
             <div className="text-sm font-medium text-gray-500 mt-1">Total Orders</div>
           </div>
@@ -140,7 +140,7 @@ export function AdminDashboard() {
               </div>
             </div>
             <div className="text-3xl font-black text-violet-600 relative z-10">
-              {loading ? "-" : stats.activeOrders}
+              {loading ? <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div> : stats.activeOrders}
             </div>
             <div className="text-sm font-bold text-violet-700 mt-1 relative z-10">Live Orders</div>
           </div>
